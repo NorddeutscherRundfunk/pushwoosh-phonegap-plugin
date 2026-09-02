@@ -7,7 +7,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 
 import com.pushwoosh.inbox.ui.PushwooshInboxStyle;
 import com.pushwoosh.inbox.ui.model.customizing.formatter.InboxDateFormatter;
@@ -50,8 +50,9 @@ class InboxUiStyleManager {
 
         private Integer optColor(String key, Integer defaultValue) {
             Integer color = parseColor(style.optString(key));
-            if (color == null)
+            if (color == null) {
                 return defaultValue;
+            }
             return color;
         }
 
@@ -84,8 +85,7 @@ class InboxUiStyleManager {
             if (imagePath != null && imagePath.length() != 0) {
                 try {
                     return getDrawable(imagePath);
-                }
-                catch (IOException e) {
+                } catch (IOException e) {
                     e.printStackTrace();
                 }
 
@@ -129,8 +129,9 @@ class InboxUiStyleManager {
     }
 
     public static void setStyle(Context context, JSONObject styleObject) {
-        if (styleObject != null)
+        if (styleObject != null) {
             new StyleParser(context, styleObject).parse();
+        }
     }
 
 }

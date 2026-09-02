@@ -9,20 +9,225 @@
 //
 // MIT Licensed
 
-var exec = require('cordova/exec');
+/**
+ * @fileoverview Pushwoosh Cordova Plugin - Integration Guide
+ *
+ * @description
+ * Pushwoosh is a customer engagement platform for push notifications, in-app messages,
+ * emails, SMS, and WhatsApp. This Cordova plugin wraps native iOS and Android Pushwoosh SDKs
+ * and provides a JavaScript bridge for hybrid mobile applications built with Cordova / PhoneGap.
+ *
+ * @section Installation
+ *
+ * Using npm:
+ * ```bash
+ * cordova plugin add pushwoosh-cordova-plugin
+ * ```
+ *
+ * Using git:
+ * ```bash
+ * cordova plugin add https://github.com/Pushwoosh/pushwoosh-phonegap-plugin.git
+ * ```
+ *
+ * @section Quick Start
+ *
+ * Step 1: Initialize the plugin on deviceready event
+ *
+ * ```javascript
+ * document.addEventListener('deviceready', function() {
+ *     var pushwoosh = cordova.require("pushwoosh-cordova-plugin.PushNotification");
+ *
+ *     pushwoosh.onDeviceReady({
+ *         appid: "XXXXX-XXXXX"
+ *     });
+ *
+ *     pushwoosh.registerDevice(
+ *         function(status) {
+ *             console.log("Registered with push token: " + status.pushToken);
+ *         },
+ *         function(error) {
+ *             console.error("Failed to register: " + error);
+ *         }
+ *     );
+ * }, false);
+ * ```
+ *
+ * Step 2: Handle push notification events
+ *
+ * ```javascript
+ * // Notification received while app is in foreground
+ * document.addEventListener('push-receive', function(event) {
+ *     var notification = event.notification;
+ *     console.log("Push received: " + JSON.stringify(notification));
+ * });
+ *
+ * // Notification opened by user
+ * document.addEventListener('push-notification', function(event) {
+ *     var notification = event.notification;
+ *     console.log("Push opened: " + JSON.stringify(notification));
+ * });
+ * ```
+ *
+ * @section Common Use Cases
+ *
+ * User identification and cross-device tracking:
+ *
+ * ```javascript
+ * var pushwoosh = cordova.require("pushwoosh-cordova-plugin.PushNotification");
+ *
+ * // After user login
+ * pushwoosh.setUserId("user_12345");
+ * pushwoosh.setEmail("user@example.com");
+ * ```
+ *
+ * User segmentation with tags:
+ *
+ * ```javascript
+ * var pushwoosh = cordova.require("pushwoosh-cordova-plugin.PushNotification");
+ *
+ * pushwoosh.setTags(
+ *     { subscription: "premium", age: 25, interests: ["sports", "music"] },
+ *     function() { console.log("Tags set successfully"); },
+ *     function(error) { console.error("Failed to set tags: " + error); }
+ * );
+ *
+ * pushwoosh.getTags(
+ *     function(tags) {
+ *         console.log("Tags: " + JSON.stringify(tags));
+ *     },
+ *     function(error) {
+ *         console.error("Get tags error: " + error);
+ *     }
+ * );
+ * ```
+ *
+ * Trigger In-App Messages with events:
+ *
+ * ```javascript
+ * var pushwoosh = cordova.require("pushwoosh-cordova-plugin.PushNotification");
+ *
+ * pushwoosh.setUserId("user_12345");
+ * pushwoosh.postEvent("purchase_complete", {
+ *     productName: "Premium Plan",
+ *     amount: "9.99"
+ * });
+ * ```
+ *
+ * Schedule a local notification:
+ *
+ * ```javascript
+ * var pushwoosh = cordova.require("pushwoosh-cordova-plugin.PushNotification");
+ *
+ * pushwoosh.createLocalNotification({
+ *     msg: "Your order is ready!",
+ *     seconds: 60,
+ *     userData: { orderId: "12345" }
+ * });
+ * ```
+ *
+ * Message Inbox with custom styling:
+ *
+ * ```javascript
+ * var pushwoosh = cordova.require("pushwoosh-cordova-plugin.PushNotification");
+ *
+ * pushwoosh.presentInboxUI({
+ *     dateFormat: "dd.MM.yyyy",
+ *     accentColor: "#3498db",
+ *     backgroundColor: "#ffffff",
+ *     titleColor: "#333333",
+ *     descriptionColor: "#666666",
+ *     dateColor: "#999999",
+ *     listEmptyMessage: "No messages yet"
+ * });
+ *
+ * // Or load messages programmatically
+ * pushwoosh.loadMessages(
+ *     function(messages) {
+ *         messages.forEach(function(msg) {
+ *             console.log(msg.title + ": " + msg.message);
+ *         });
+ *     },
+ *     function(error) {
+ *         console.error("Failed to load messages: " + error);
+ *     }
+ * );
+ *
+ * pushwoosh.unreadMessagesCount(function(count) {
+ *     console.log("Unread messages: " + count);
+ * });
+ * ```
+ *
+ * Multi-channel communication:
+ *
+ * ```javascript
+ * var pushwoosh = cordova.require("pushwoosh-cordova-plugin.PushNotification");
+ *
+ * pushwoosh.setEmail("user@example.com");
+ * pushwoosh.setEmails(["work@example.com", "personal@example.com"]);
+ * pushwoosh.registerSMSNumber("+1234567890");
+ * pushwoosh.registerWhatsappNumber("+1234567890");
+ * ```
+ *
+ * Handle launch notification (app opened via push):
+ *
+ * ```javascript
+ * var pushwoosh = cordova.require("pushwoosh-cordova-plugin.PushNotification");
+ *
+ * pushwoosh.getLaunchNotification(function(notification) {
+ *     if (notification) {
+ *         console.log("App launched from push: " + JSON.stringify(notification));
+ *         // Navigate to the relevant screen
+ *     }
+ * });
+ * ```
+ *
+ * Enable/disable Pushwoosh communication (e.g. for GDPR):
+ *
+ * ```javascript
+ * var pushwoosh = cordova.require("pushwoosh-cordova-plugin.PushNotification");
+ *
+ * // User opted out
+ * pushwoosh.setCommunicationEnabled(false);
+ *
+ * // User opted in
+ * pushwoosh.setCommunicationEnabled(true);
+ *
+ * // Check current status
+ * pushwoosh.isCommunicationEnabled(function(enabled) {
+ *     console.log("Communication enabled: " + enabled);
+ * });
+ * ```
+ *
+ * @section Plugin Preferences
+ *
+ * Configure these in your config.xml:
+ *
+ * - LOG_LEVEL (default: "DEBUG") - Logging level
+ * - IOS_FOREGROUND_ALERT_TYPE (default: "ALERT") - iOS foreground notification display type
+ * - ANDROID_FOREGROUND_PUSH (default: "true") - Show notifications when app is in foreground on Android
+ * - PW_VOIP_IOS_ENABLED (default: "false") - Enable VoIP calling features on iOS
+ * - PW_VOIP_ANDROID_ENABLED (default: "false") - Enable VoIP calling features on Android
+ *
+ * @section Events
+ *
+ * The plugin dispatches the following DOM events:
+ *
+ * - "push-receive" - Fired when a notification is received while the app is in foreground.
+ *   Access the notification payload via event.notification.
+ * - "push-notification" - Fired when a notification is opened by the user.
+ *   Access the notification payload via event.notification.
+ *
+ * @module pushwoosh-cordova-plugin
+ */
 
-//Class: PushNotification
-//Class to interact with Pushwoosh Push Notifications plugin
-//
-//Example:
-//(start code)
-//	    	    var pushwoosh = cordova.require("pushwoosh-cordova-plugin.PushNotification");
-//				pushwoosh.onDeviceReady({ 
-//					appid : "XXXXX-XXXXX",
-//					projectid: "XXXXXXXXXXXXXXX", 
-//					serviceName: "XXXX" 
-//				});
-//(end)
+var exec = window.cordova.exec;
+
+/**
+ * PushNotification class provides the JavaScript API for interacting with the Pushwoosh SDK.
+ * Access it via: `var pushwoosh = cordova.require("pushwoosh-cordova-plugin.PushNotification");`
+ *
+ * @class PushNotification
+ */
 function PushNotification() {}
 
 //Function: onDeviceReady
@@ -31,16 +236,14 @@ function PushNotification() {}
 //
 //Parameters:
 // "config.appid" - Pushwoosh application code
-// "config.projectid" - GCM project number for android platform
 // "config.serviceName" - MPNS service name for wp8 platform
 //
 //Example:
 //(start code)
-//	//initialize Pushwoosh with projectid: "GOOGLE_PROJECT_NUMBER", appid : "PUSHWOOSH_APP_ID", serviceName : "WINDOWS_PHONE_SERVICE". This will trigger all pending push notifications on start.
-//	pushwoosh.onDeviceReady({ 
+//	//initialize Pushwoosh with appid : "PUSHWOOSH_APP_ID", serviceName : "WINDOWS_PHONE_SERVICE". This will trigger all pending push notifications on start.
+//	pushwoosh.onDeviceReady({
 //		appid : "XXXXX-XXXXX",
-//		projectid: "XXXXXXXXXXXXXXX", 
-//		serviceName: "XXXX" 
+//		serviceName: "XXXX"
 //	});
 //(end)
 PushNotification.prototype.onDeviceReady = function(config) {
@@ -78,6 +281,26 @@ PushNotification.prototype.onAppActivated = function (args) {
 PushNotification.prototype.registerDevice = function(success, fail) {
 	exec(success, fail, "PushNotification", "registerDevice", []);
 };
+
+//Function: additionalAuthorizationOptions
+//[ios] Authorization options in addition to UNAuthorizationOptionBadge | UNAuthorizationOptionSound | UNAuthorizationOptionAlert | UNAuthorizationOptionCarPlay. 
+//Should be called before registering for pushes
+//
+//Parameters:
+// "options.UNAuthorizationOptionCriticalAlert" - adds UNAuthorizationOptionCriticalAlert option
+// "options.UNAuthorizationOptionProvisional" - adds UNAuthorizationOptionProvisional option
+// "options.UNAuthorizationOptionProvidesAppNotificationSettings" - adds UNAuthorizationOptionProvidesAppNotificationSettings option
+//
+//Example:
+//(start code)
+//	pushwoosh.additionalAuthorizationOptions({ 
+//		"UNAuthorizationOptionCriticalAlert" : 1,
+//		"UNAuthorizationOptionProvisional": 0 // set 0 or don't specify the option if you don't want to add it to your app. 
+//	});
+//(end)
+PushNotification.prototype.additionalAuthorizationOptions = function(options) {
+	exec(null, null, "PushNotification", "additionalAuthorizationOptions", options ? [options] : []);
+}
 
 //Function: unregisterDevice
 //[android, ios, wp8, windows] Unregister device form receiving push notifications
@@ -251,6 +474,29 @@ PushNotification.prototype.getLaunchNotification = function(callback) {
 //[android, ios] Clears launch notifiation, getLaunchNotification() will return null after this call.
 PushNotification.prototype.clearLaunchNotification = function(callback) {
 	exec(callback, callback, "PushNotification", "clearLaunchNotification", []);
+};
+
+//Function: setLanguage
+//[android, ios] Set custom application language (as opposed to the default system language).
+//This allows sending localized push messages
+//
+//Parameters:
+// "language" - string containing language code, i.e. "en", "fr"
+//
+PushNotification.prototype.setLanguage = function(language) {
+	exec(null, null, "PushNotification", "setLanguage", [language]);
+};
+
+//Function: setShowPushnotificationAlert
+//[android, ios] Configure custom foreground push notification settings distinct from the default system configuration.
+//This allows show foreground push notifications
+//
+//Parameters:
+// "showPushnotificationAlert" - bool value
+//
+
+PushNotification.prototype.setShowPushnotificationAlert = function(showPushnotificationAlert) {
+	exec(null, null, "PushNotification", "setShowPushnotificationAlert", [showPushnotificationAlert]);
 };
 
 //Function: setUserId
@@ -443,6 +689,204 @@ PushNotification.prototype.notificationCallback = function(notification) {
 	document.dispatchEvent(ev);
 };
 
+// CallKit, PushKit
+/**
+ * Registers a callback for a specific VoIP-related event.
+ *
+ * This method allows you to subscribe to a predefined set of VoIP events.
+ * When the specified event occurs, the provided success callback will be invoked.
+ *
+ * @param {string} eventName - The name of the event to register for.
+ *                             Supported event names include:
+ *                             - "answer": Triggered when the call is answered.
+ *                             - "hangup": Triggered when the call is hung up.
+ *                             - "reject": Triggered when the call is rejected.
+ *                             - "muted": Triggered when the call is muted or unmuted.
+ *                             - "held": Triggered when the call is put on or off hold.
+ *                             - "voipPushPayload": Triggered when a VoIP push notification is received.
+ *                             - "incomingCallSuccess": Triggered when an incoming call is successfully displayed.
+ *                             - "incomingCallFailure": Triggered when displaying the incoming call fails.
+ *                             - "playDTMF": Triggered when a DTMF tone is played.
+ *                             - "voipDidFailToRegisterTokenWithError": Triggered when VoIP token registration fails (iOS only).
+ *                             - "voipDidRegisterTokenSuccessfully": Triggered when VoIP token registration succeeds (iOS only).
+ *                             - "voipDidCancelCall": Triggered when a call is remotely cancelled via VoIP push.
+ *                             - "voipDidFailToCancelCall": Triggered when a call cancellation attempt fails.
+ *
+ * @param {Function} success - Callback function to be invoked when the event occurs.
+ * @param {Function} fail - Callback function to be invoked if the registration fails.
+ *
+ * @remarks iOS: if you present the call UI in a secondary native WebView on top of the main
+ * WebView, the main WebView is backgrounded and these callbacks are suspended. The plugin also
+ * broadcasts every VoIP event via the `PushwooshVoIPEventDispatched` NSNotification so your native
+ * view controller can inject the event into that WebView. See the README section
+ * "Forwarding VoIP events to a secondary WebView (iOS)".
+ */
+PushNotification.prototype.registerEvent = function(eventName, success, fail) {
+	exec(success, fail, "PushNotification", "registerEvent", [eventName]);
+};
+
+/**
+ * Unregisters a callback for a specific VoIP-related event.
+ *
+ * This method allows you to unsubscribe from a previously registered VoIP event.
+ * After unregistering, the event callback will no longer be invoked when the event occurs.
+ *
+ * @param {string} eventName - The name of the event to unregister from.
+ *                             This should match the event name used in registerEvent().
+ *                             Supported event names include:
+ *                             - "answer": Triggered when the call is answered.
+ *                             - "hangup": Triggered when the call is hung up.
+ *                             - "reject": Triggered when the call is rejected.
+ *                             - "muted": Triggered when the call is muted or unmuted.
+ *                             - "held": Triggered when the call is put on or off hold.
+ *                             - "voipPushPayload": Triggered when a VoIP push notification is received.
+ *                             - "incomingCallSuccess": Triggered when an incoming call is successfully displayed.
+ *                             - "incomingCallFailure": Triggered when displaying the incoming call fails.
+ *                             - "playDTMF": Triggered when a DTMF tone is played.
+ *                             - "voipDidFailToRegisterTokenWithError": Triggered when VoIP token registration fails (iOS only).
+ *                             - "voipDidRegisterTokenSuccessfully": Triggered when VoIP token registration succeeds (iOS only).
+ *                             - "voipDidCancelCall": Triggered when a call is remotely cancelled via VoIP push.
+ *                             - "voipDidFailToCancelCall": Triggered when a call cancellation attempt fails.
+ *
+ * @param {Function} success - Callback function to be invoked when the event is successfully unregistered.
+ * @param {Function} fail - Callback function to be invoked if the unregistration fails.
+ */
+PushNotification.prototype.unregisterEvent = function(eventName, success, fail) {
+	exec(success, fail, "PushNotification", "unregisterEvent", [eventName]);
+};
+
+/**
+ * VoIP Push API Reference
+ *
+ * Call parameters are configured server-side when sending a VoIP push via /createMessage API.
+ * Set "voip_push": true and pass parameters in platform-specific root_params:
+ *
+ * iOS (ios_root_params):
+ *   callerName      {string}  - Caller name ("unknown caller" if omitted)
+ *   video           {boolean} - Video call support
+ *   supportsHolding {boolean} - Hold functionality
+ *   supportsDTMF    {boolean} - DTMF signal support
+ *   handleType      {number}  - 1: generic, 2: phone number, 3: email
+ *   callId          {string}  - Unique call ID (used with cancelCall)
+ *   cancelCall      {boolean} - Cancel call with specified callId
+ *
+ * Android (android_root_params):
+ *   callerName      {string}  - Caller name ("unknown caller" if omitted)
+ *   video           {boolean} - Video call support
+ *   callId          {number}  - Unique call ID (used with cancelCall)
+ *   cancelCall      {boolean} - Cancel call with specified callId
+ */
+
+/**
+ * @deprecated VoIP is now auto-initialized. Use {@link setRingtone} to customize the ringtone sound.
+ * All parameters except ringtoneSound are ignored. Only ringtoneSound is forwarded to setRingtone().
+ *
+ * @param {boolean} [supportsVideo] - Ignored.
+ * @param {string} [ringtoneSound] - Forwarded to setRingtone().
+ * @param {number} [handleTypes] - Ignored.
+ * @param {Function} success - Callback invoked on success.
+ * @param {Function} error - Callback invoked on failure.
+ */
+PushNotification.prototype.initializeVoIPParameters = function(supportsVideo, ringtoneSound, handleTypes, success, error) {
+    if (typeof handleTypes === "function") {
+        error = ringtoneSound;
+        success = supportsVideo;
+        handleTypes = undefined;
+        ringtoneSound = undefined;
+        supportsVideo = undefined;
+    }
+
+    exec(success, error, "PushNotification", "initializeVoIPParameters", [
+        !!supportsVideo,
+        ringtoneSound || "",
+        handleTypes != null ? Number(handleTypes) : 1
+    ]);
+};
+
+/**
+ * Enables the device speaker during an active call.
+ *
+ * This method routes the call audio output through the device’s loudspeaker
+ * instead of the earpiece. Useful for hands-free or speakerphone mode.
+ *
+ * @param {Function} success - Callback invoked when the speaker is successfully enabled.
+ * @param {Function} error - Callback invoked if the operation fails.
+ *
+ * @example
+ * PushNotification.speakerOn(onSuccess, onError);
+ */
+PushNotification.prototype.speakerOn = function(success, error) {
+    exec(success, error, "PushNotification", "speakerOn", []);
+};
+
+/**
+ * Disables the device speaker and routes audio back to the earpiece.
+ *
+ * This method returns the audio output to the default mode (typically the earpiece),
+ * which is used for private voice conversations.
+ *
+ * @param {Function} success - Callback invoked when the speaker is successfully disabled.
+ * @param {Function} error - Callback invoked if the operation fails.
+ *
+ * @example
+ * PushNotification.speakerOff(onSuccess, onError);
+ */
+PushNotification.prototype.speakerOff = function(success, error) {
+    exec(success, error, "PushNotification", "speakerOff", []);
+};
+
+/**
+ * Mute device microphone
+ * @param {Function} success - Callback invoked when the microphone is successfully disabled.
+ * @param {Function} error - Callback invoked if the operation fails.
+ */
+PushNotification.prototype.mute = function(success, error) {
+	    exec(success, error, "PushNotification", "speakerOff", []);
+
+}
+
+/**
+ * Unmute device microphone
+ * @param {Function} success - Callback invoked when the microphone is successfully enable.
+ * @param {Function} error - Callback invoked if the operation fails.
+ */
+PushNotification.prototype.unmute = function(success, error) {
+	    exec(success, error, "PushNotification", "unmute", []);
+
+}
+
+// Android calls
+/**
+ * Request call permission and register phone account
+ * @param {Function} success - Callback invoked with permission result
+ * @param {Function} error - Callback invoked if the operation fails
+ */
+PushNotification.prototype.requestCallPermission = function(success, error) {
+	exec(success, error, "PushNotification", "requestCallPermission", []);
+}
+
+/**
+ * Get call permission status
+ * Returns a Promise or calls success callback with status:
+ *   0 - Permission not requested yet
+ *   1 - Permission granted by user
+ *   2 - Permission denied by user
+ * @param {Function} success - Callback invoked with permission status
+ * @param {Function} error - Callback invoked if the operation fails
+ */
+PushNotification.prototype.getCallPermissionStatus = function(success, error) {
+	exec(success, error, "PushNotification", "getCallPermissionStatus", []);
+}
+
+/**
+ * Notifies Pushwoosh that the call has ended
+ * @param {Function} success - Callback invoked when the call ends.
+ * @param {Function} error - Callback invoked if the operation fails.
+ */
+PushNotification.prototype.endCall = function(success, error) {
+	exec(success, error, "PushNotification", "endCall", []);
+}
+
 // Opens Inbox screen.
 //
 // Supported style keys:
@@ -521,14 +965,39 @@ PushNotification.prototype.presentInboxUI = function(params) {
 	exec(null, null, "PushNotification", "presentInboxUI", [ params ]);
 }
 
-// Show inApp for change setting Enable/disable all communication with Pushwoosh
-PushNotification.prototype.showGDPRConsentUI = function() {
-	exec(null, null, "PushNotification", "showGDPRConsentUI", []);
+// Load an array of InboxNotification objects
+PushNotification.prototype.loadMessages = function(success, fail) {
+	exec(success, fail, "PushNotification", "loadMessages", []);
 }
 
-// Show inApp for all device data from Pushwoosh and stops all interactions and communication permanently.
-PushNotification.prototype.showGDPRDeletionUI = function() {
-	exec(null, null, "PushNotification", "showGDPRDeletionUI", []);
+// Get number of inbox messages with no action performed
+PushNotification.prototype.messagesWithNoActionPerformedCount = function(success) {
+	exec(success, null, "PushNotification", "messagesWithNoActionPerformedCount", []);
+}
+
+// Get number of unread inbox messages
+PushNotification.prototype.unreadMessagesCount = function(success) {
+	exec(success, null,"PushNotification", "unreadMessagesCount", []);
+}
+
+// Get total number of inbox messages
+PushNotification.prototype.messagesCount = function(success) {
+	exec(success, null,"PushNotification", "messagesCount", []);
+}
+
+// Mark inbox message as read
+PushNotification.prototype.readMessage = function(number) {
+	exec(null, null, "PushNotification", "readMessage", [number]);
+}
+
+// Delete message from inbox
+PushNotification.prototype.deleteMessage = function(number) {
+	exec(null, null, "PushNotification", "deleteMessage", [number]);
+}
+
+// Perform action for specified inbox message (i.e. open URL)
+PushNotification.prototype.performAction = function(number) {
+	exec(null, null, "PushNotification", "performAction", [number]);
 }
 
 // Enable/disable all communication with Pushwoosh. Enabled by default.
@@ -536,22 +1005,63 @@ PushNotification.prototype.setCommunicationEnabled = function(enable, success, f
 	exec(success, fail, "PushNotification", "setCommunicationEnabled", [enable]);
 };
 
-// Removes all device data from Pushwoosh and stops all interactions and communication permanently.
-PushNotification.prototype.removeAllDeviceData = function(success, fail) {
-	exec(success, fail, "PushNotification", "removeAllDeviceData", []);
+// Register email associated to the current user.
+// Email should be a string and could not be null or empty.
+PushNotification.prototype.setEmail = function(email, success, fail) {
+    exec(success, fail, "PushNotification", "setEmail", [email]);
+};
+
+// Register list of emails associated to the current user.
+PushNotification.prototype.setEmails = function(emails, success, fail) {
+    exec(success, fail, "PushNotification", "setEmails", [emails]);
+};
+
+// Set user identifier and register emails associated to the user.
+// userID can be Facebook ID or any other user ID.
+// This allows data and events to be matched across multiple user devices.
+PushNotification.prototype.setUserEmails = function(userId, emails, success, fail) {
+    exec(success, fail, "PushNotification", "setUserEmails", [userId, emails]);
+};
+
+// Registers phone number associated to the current user.
+// PhoneNumber should be a string and cannot be null or empty.
+PushNotification.prototype.registerSMSNumber = function(phoneNumber, success, fail) {
+	exec(success, fail, "PushNotification", "registerSMSNumber", [phoneNumber]);
+};
+
+// Registers Whatsapp number associated to the current user.
+// PhoneNumber should be a string and cannot be null or empty.
+PushNotification.prototype.registerWhatsappNumber = function(phoneNumber, success, fail) {
+	exec(success, fail, "PushNotification", "registerWhatsappNumber", [phoneNumber]);
 };
 
 PushNotification.prototype.isCommunicationEnabled = function(success) {
 	return exec(success, null, "PushNotification", "isCommunicationEnabled", []);
 };
 
-PushNotification.prototype.isDeviceDataRemoved = function(success) {
-	return exec(success, null, "PushNotification", "isDeviceDataRemoved", []);
+// Enable Huawei push notifications in Android
+PushNotification.prototype.enableHuaweiPushNotifications = function() {
+	exec(null, null, "PushNotification", "enableHuaweiPushNotifications", []);
+}
+
+PushNotification.prototype.setApiToken = function(token) {
+	exec(null, null, "PushNotification", "setApiToken", [token]);
+}
+
+/**
+ * Sets custom ringtone sound for incoming VoIP calls.
+ * Call this at any time; the new ringtone takes effect on the next incoming call.
+ *
+ * @param {string} ringtoneSound - The name of the ringtone sound file (e.g., "ring.caf").
+ * @param {Function} success - Callback invoked when the ringtone is successfully set.
+ * @param {Function} error - Callback invoked if the operation fails.
+ */
+PushNotification.prototype.setRingtone = function(ringtoneSound, success, error) {
+	exec(success, error, "PushNotification", "setRingtone", [ringtoneSound || ""]);
 };
 
-// Indicates availability of the GDPR compliance solution.
-PushNotification.prototype.isAvailableGDPR = function(success) {
-	return exec(success, null, "PushNotification", "isAvailableGDPR", []);
-};
+PushNotification.prototype.setIncomingCallTimeout = function(timeoutSeconds) {
+	exec(null, null, "PushNotification", "setIncomingCallTimeout", [timeoutSeconds]);
+}
 
 module.exports = new PushNotification();

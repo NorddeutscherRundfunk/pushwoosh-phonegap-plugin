@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="format-detection" content="telephone=no">
+        <meta name="msapplication-tap-highlight" content="no">
+        <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
+        <meta name="color-scheme" content="light dark">
+        <link rel="stylesheet" href="css/index.css">
+        <title>2nd Activity View</title>
+        <style>
+            body { background-color: #fff3e0; }
+            .status-indicator { background-color: #fff3e0; }
+
+            .view-badge {
+                display: inline-block;
+                background: linear-gradient(135deg, #ff9800 0%, #e65100 100%);
+                color: white;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+                padding: 4px 12px;
+                border-radius: 20px;
+                margin-bottom: 8px;
+            }
+
+            .section h2 { color: #e65100; }
+            .btn-primary {
+                background: linear-gradient(135deg, #ff9800 0%, #e65100 100%);
+                box-shadow: 0 4px 12px rgba(230, 81, 0, 0.4);
+            }
+            .btn-primary:active {
+                box-shadow: 0 2px 6px rgba(230, 81, 0, 0.4);
+            }
+            .btn-secondary {
+                background-color: #bf360c;
+            }
+            .btn-secondary:active {
+                background-color: #a02c0a;
+            }
+            .status.ready {
+                background-color: #e65100;
+                animation: pulse-orange 2s ease-in-out infinite;
+            }
+            @keyframes pulse-orange {
+                0%, 100% {
+                    box-shadow: 0 4px 12px rgba(230, 81, 0, 0.4);
+                    transform: scale(1);
+                }
+                50% {
+                    box-shadow: 0 4px 20px rgba(230, 81, 0, 0.8);
+                    transform: scale(1.02);
+                }
+            }
+            .form-group input[type="text"]:focus {
+                border-color: #e65100;
+            }
+            .log-entry {
+                border-left-color: #ff6d00;
+                background-color: rgba(255, 109, 0, 0.1);
+            }
+            .log-entry .event-name {
+                color: #ffb74d;
+            }
+            .section.info-section {
+                border-left: 4px solid #ff9800;
+            }
+            .info-section p {
+                font-size: 13px;
+                color: #888;
+                margin: 0;
+                line-height: 1.5;
+            }
+
+            @media screen and (prefers-color-scheme: dark) {
+                body { background-color: #1a1200; }
+                .status-indicator { background-color: #1a1200; }
+                .section h2 { color: #ffb74d; }
+                .scroll-content { background-color: #1a1200; }
+                .form-group input[type="text"]:focus { border-color: #ff9800; }
+                .section.info-section { border-left-color: #ff9800; }
+                .info-section p { color: #aaa; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="app">
+            <div class="scroll-content">
+                <!-- Header -->
+                <div id="deviceready" class="status-indicator">
+                    <div class="status listening">Connecting to Device...</div>
+                    <div class="status ready">2nd Activity View Ready</div>
+                </div>
+
+                <!-- Info Section -->
+                <div class="section info-section">
+                    <span class="view-badge">2nd Activity View</span>
+                    <h2>Personal Cabinet</h2>
+                    <p>
+                        Simulates a second CordovaActivity with its own WebView.
+                        VoIP events registered here should fire independently from the 1st Activity View.
+                    </p>
+                </div>
+
+                <!-- Pushwoosh Init Section -->
+                <div class="section">
+                    <h2>Pushwoosh Setup</h2>
+
+                    <div class="form-group">
+                        <label for="pushAppId2">App ID / VoIP App Code</label>
+                        <input type="text" id="pushAppId2" value="XXXXX-XXXXX">
+                    </div>
+
+                    <button id="btnInitPushwoosh2" class="btn btn-primary">Initialize Pushwoosh</button>
+                </div>
+
+                <!-- Call Permissions Section -->
+                <div class="section">
+                    <h2>Call Permissions</h2>
+                    <button id="btnRequestCallPermission2" class="btn btn-secondary">
+                        Request Call Permission (Android Only)
+                    </button>
+                    <div id="permissionStatus2" class="status-text"></div>
+                </div>
+
+                <!-- Call Controls Section -->
+                <div class="section">
+                    <h2>Call Controls</h2>
+                    <button id="btnEndCall2" class="btn btn-danger">End Call</button>
+                </div>
+
+                <!-- Navigation Section -->
+                <div class="section">
+                    <h2>Navigation</h2>
+                    <button id="btnClose" class="btn btn-secondary">Close & Return to 1st Activity View</button>
+                </div>
+
+                <!-- VoIP Events Log Section -->
+                <div class="section">
+                    <h2>Events Log</h2>
+                    <button id="btnClearLog2" class="btn btn-small">Clear Log</button>
+                    <div id="eventLog2" class="event-log"></div>
+                </div>
+            </div>
+        </div>
+        <script src="cordova.js"></script>
+        <script>
+            var pushwoosh = null;
+            var TAG = '[2nd ACTIVITY VIEW]';
+
+            var VOIP_EVENTS = [
+                'voipPushPayload',
+                'answer',
+                'reject',
+                'hangup',
+                'muted',
+                'unmuted',
+                'held',
+                'unheld',
+                'dtmf',
+                'audioInterruption',
+                'callFailed',
+                'providerDidActivate',
+                'providerDidDeactivate',
+                'incomingCallSuccess',
+                'incomingCallFailure',
+                'playDTMF',
+                'voipDidFailToRegisterTokenWithError',
+                'voipDidRegisterTokenSuccessfully',
+                'voipDidCancelCall',
+                'voipDidFailToCancelCall'
+            ];
+
+            document.addEventListener('deviceready', function() {
+                console.log(TAG + '[DEVICE_READY]');
+                document.getElementById('deviceready').classList.add('ready');
+
+                pushwoosh = cordova.require("pushwoosh-cordova-plugin.PushNotification");
+
+                registerVoIPEvents();
+                setupPushNotificationEvents();
+
+                // Auto-initialize with default values
+                var appId = document.getElementById('pushAppId2').value;
+                if (appId) {
+                    initializePushwoosh(appId);
+                }
+            }, false);
+
+            function initializePushwoosh(appId) {
+                console.log(TAG + '[INIT_PUSHWOOSH] appId=' + appId);
+                logEventToUI('init', 'Initializing Pushwoosh...');
+
+                pushwoosh.onDeviceReady({
+                    "appid": appId
+                });
+
+                // Auto-initialize VoIP parameters with defaults
+                pushwoosh.initializeVoIPParameters(
+                    true,       // supportsVideo
+                    "ring.caf", // ringtoneSound
+                    2,          // handleType: Phone Number
+                    function() {
+                        console.log(TAG + '[INIT_VOIP] success');
+                        logEventToUI('initVoIP', 'VoIP parameters initialized automatically');
+                    },
+                    function(error) {
+                        console.log(TAG + '[INIT_VOIP] error: ' + error);
+                        logEventToUI('initVoIP ERROR', error);
+                    }
+                );
+
+                pushwoosh.getPushToken(function(token) {
+                    console.log(TAG + '[GET_PUSH_TOKEN] ' + (token || '(empty)'));
+                    logEventToUI('getPushToken', token || '(empty)');
+                });
+
+                pushwoosh.getPushwooshHWID(function(hwid) {
+                    console.log(TAG + '[GET_HWID] ' + (hwid || '(empty)'));
+                    logEventToUI('getHWID', hwid || '(empty)');
+                });
+
+                pushwoosh.registerDevice(
+                    function(status) {
+                        console.log(TAG + '[REGISTER_DEVICE] success: pushToken=' + status.pushToken);
+                        logEventToUI('registerDevice OK', status.pushToken || '');
+                    },
+                    function(error) {
+                        console.log(TAG + '[REGISTER_DEVICE] error: ' + JSON.stringify(error));
+                        logEventToUI('registerDevice ERROR', JSON.stringify(error));
+                    }
+                );
+            }
+
+            function registerVoIPEvents() {
+                VOIP_EVENTS.forEach(function(eventName) {
+                    pushwoosh.registerEvent(
+                        eventName,
+                        function(data) {
+                            console.log(TAG + '[' + eventName.toUpperCase() + '] ' + JSON.stringify(data));
+                            logEventToUI(eventName, JSON.stringify(data, null, 2));
+                        },
+                        function(error) {
+                            console.log(TAG + '[REGISTER_EVENT] error: event=' + eventName + ', ' + error);
+                        }
+                    );
+                });
+                console.log(TAG + '[REGISTER_EVENT] registered ' + VOIP_EVENTS.length + ' VoIP events');
+                logEventToUI('registerEvents', 'Registered ' + VOIP_EVENTS.length + ' VoIP events');
+            }
+
+            function setupPushNotificationEvents() {
+                document.addEventListener('push-notification', function(event) {
+                    var notification = event.notification;
+                    console.log(TAG + '[PUSH_NOTIFICATION] opened: ' + JSON.stringify(notification));
+                    logEventToUI('push-notification', JSON.stringify(notification, null, 2));
+                });
+
+                document.addEventListener('push-receive', function(event) {
+                    var notification = event.notification;
+                    console.log(TAG + '[PUSH_RECEIVE] ' + JSON.stringify(notification));
+                    logEventToUI('push-receive', JSON.stringify(notification, null, 2));
+                });
+            }
+
+            function logEventToUI(eventName, data) {
+                var timestamp = new Date().toLocaleTimeString();
+
+                var eventLog = document.getElementById('eventLog2');
+                var logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+
+                logEntry.innerHTML =
+                    '<span class="timestamp">[' + timestamp + ']</span>' +
+                    '<span class="event-name">' + eventName + '</span>' +
+                    '<br/>' +
+                    '<span class="event-data">' + (data || '') + '</span>';
+
+                eventLog.insertBefore(logEntry, eventLog.firstChild);
+
+                while (eventLog.children.length > 50) {
+                    eventLog.removeChild(eventLog.lastChild);
+                }
+            }
+
+            // UI event listeners
+            document.addEventListener('DOMContentLoaded', function() {
+                document.getElementById('btnInitPushwoosh2').addEventListener('click', function() {
+                    if (!pushwoosh) {
+                        logEventToUI('initializePushwoosh', 'Pushwoosh not ready yet. Wait for device ready.');
+                        return;
+                    }
+                    var appId = document.getElementById('pushAppId2').value;
+                    if (!appId) {
+                        logEventToUI('initializePushwoosh', 'Please enter App ID');
+                        return;
+                    }
+                    initializePushwoosh(appId);
+                });
+
+                document.getElementById('btnRequestCallPermission2').addEventListener('click', function() {
+                    if (!pushwoosh) {
+                        logEventToUI('requestCallPermission', 'Pushwoosh not ready yet. Wait for device ready.');
+                        return;
+                    }
+                    console.log(TAG + '[REQUEST_CALL_PERMISSION] calling...');
+                    logEventToUI('requestCallPermission', 'Requesting...');
+                    pushwoosh.requestCallPermission(
+                        function(granted) {
+                            console.log(TAG + '[REQUEST_CALL_PERMISSION] granted=' + granted);
+                            logEventToUI('requestCallPermission', 'granted=' + granted);
+                            document.getElementById('permissionStatus2').textContent = 'Call permission ' + (granted ? 'granted' : 'denied');
+                        },
+                        function(error) {
+                            console.log(TAG + '[REQUEST_CALL_PERMISSION] error: ' + error);
+                            logEventToUI('requestCallPermission ERROR', error);
+                            document.getElementById('permissionStatus2').textContent = 'Error: ' + error;
+                        }
+                    );
+                });
+
+                document.getElementById('btnEndCall2').addEventListener('click', function() {
+                    if (!pushwoosh) {
+                        logEventToUI('endCall', 'Pushwoosh not ready yet. Wait for device ready.');
+                        return;
+                    }
+                    console.log(TAG + '[END_CALL] calling...');
+                    pushwoosh.endCall(
+                        function() {
+                            console.log(TAG + '[END_CALL] success');
+                            logEventToUI('endCall', 'Call ended successfully');
+                        },
+                        function(error) {
+                            console.log(TAG + '[END_CALL] error: ' + error);
+                            logEventToUI('endCall ERROR', error);
+                        }
+                    );
+                });
+
+                document.getElementById('btnClose').addEventListener('click', function() {
+                    console.log(TAG + '[CLOSE] returning to 1st Activity View');
+                    if (window.SecondWebView) {
+                        SecondWebView.close();
+                    } else {
+                        logEventToUI('close', 'SecondWebView plugin not available');
+                    }
+                });
+
+                document.getElementById('btnClearLog2').addEventListener('click', function() {
+                    document.getElementById('eventLog2').innerHTML = '';
+                });
+            });
+        </script>
+    </body>
+</html>
